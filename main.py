@@ -11,8 +11,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-MAX_PAGES = 3
-
 class InvoiceLineItem(BaseModel):
     sku: str = None
     description: str = None
@@ -43,27 +41,42 @@ def read_invoice_document(pdf_path: str) -> dict:
 
     try:
         with pymupdf.open(pdf_path) as invoice_doc:
-            for page_number, page in enumerate(invoice_doc[:MAX_PAGES], start=1):
+            for page_number, page in enumerate(invoice_doc, start=1):
                 text = page.get_text("text") or ""
-                pix = page.get_pixmap(dpi=70)
-                image_bytes = pix.tobytes("png")
 
-                pages.append(
-                    {
-                        "page_number": page_number,
-                        "text": text,
-                        "image_base64": base64.b64encode(image_bytes).decode("utf-8")
-                    }
-                )
-        return {
-            "page_count": len(pages),
-            "pages": pages
-        }
+                page_data = {
+                    "page_number": page_number,
+                    "text": text,
+                }
+
+                # Only generate image if the PDF page contains images
+                if page.get_images(full=True):
+                    pix = page.get_pixmap(dpi=100)
+                    image_bytes = pix.tobytes("png")
+
+                    page_data["image_base64"] = (
+                        base64.b64encode(image_bytes).decode("utf-8")
+                    )
+
+                pages.append(page_data)
 
     except Exception as e:
         return {
-            "error": str(e)
+            "error": f"Failed to read PDF: {e}"
         }
+
+    return {
+        "page_count": len(pages),
+        "extracted_text": "\n\n".join(
+            f"-- PAGE {page['page_number']} --\n{page['text']}"
+            for page in pages
+        ),
+        "extracted_image": "\n\n".join(
+            f"-- PAGE {page['page_number']} --\n{page['image_base64']}"
+            for page in pages
+            if "image_base64" in page
+        )
+    }
 
 invoice_agent_instructions = """
 You are an expert in extracting information from invoices.
@@ -71,8 +84,8 @@ Always folow the workflow and rules provided below.
 
 Workflow:
 1. Use all tools that you may have access to.
-2. Read the extracted text from the document first.
-3. If information seems incomplete, ambiguous, misssing or poorly formatted, inspect the corresponding page image.
+2. Read the `extracted_text` from the document first.
+3. If there is an image available for any page then inspect the `extracted_image` to extract information from it.
 4. Return structured information following the schema provided.
 
 Rules:
