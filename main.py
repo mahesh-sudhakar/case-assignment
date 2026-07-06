@@ -11,6 +11,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+MAX_PAGES = 3
+
 class InvoiceLineItem(BaseModel):
     sku: str = None
     description: str = None
@@ -41,9 +43,9 @@ def read_invoice_document(pdf_path: str) -> dict:
 
     try:
         with pymupdf.open(pdf_path) as invoice_doc:
-            for page_number, page in enumerate(invoice_doc, start=1):
+            for page_number, page in enumerate(invoice_doc[:MAX_PAGES], start=1):
                 text = page.get_text("text") or ""
-                pix = page.get_pixmap(dpi=200)
+                pix = page.get_pixmap(dpi=70)
                 image_bytes = pix.tobytes("png")
 
                 pages.append(
