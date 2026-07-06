@@ -38,6 +38,21 @@ class Invoice(BaseModel):
 
 
 @function_tool
+def read_email_json(email_json_path: str) -> dict:
+    try:
+        with open(email_json_path, "r") as f:
+            email_data = json.load(f)
+
+        return {
+            "email": email_data
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Failed to read email JSON: {e}"
+        }
+
+@function_tool
 def read_invoice_document(pdf_path: str) -> dict:
     pages = []
     output_dir = "temp"
@@ -120,44 +135,55 @@ def read_invoice_image(image_path: str) -> dict:
 
 
 invoice_agent_instructions = """
-You are an expert in extracting information from invoices.
+You are an expert at extracting invoice and purchase data from inbound emails and PDF invoices.
 
 Workflow:
-1. First call read_invoice_document tool.
-2. Use extracted text first.
-3. Only call read_invoice_image for a specific image_path if the text is incomplete, ambiguous, missing, or poorly formatted.
-4. Do not inspect logos, QR codes, barcodes, or signatures unless they are needed for invoice extraction.
-5. Return structured information following the schema.
+1. First call read_email_json to inspect the inbound email.
+2. Then call read_invoice_document to inspect the PDF invoice.
+3. Use email content and PDF text first.
+4. Only call read_invoice_image for a specific image_path if a required value is missing, ambiguous, or appears to be inside an image.
+5. Merge information from the email and PDF into one final Invoice object.
 
 Rules:
-1. Never hallucinate.
-2. If values are missing even after using available tools, populate null.
-3. Preserve currency values accurately.
-4. Extract all invoice line items.
-5. Use images only when needed to resolve missing or ambiguous invoice data.
+1. The final output must follow the Invoice schema.
+2. The Invoice values may come from the email, the PDF text, or PDF images.
+3. Prefer PDF invoice values over email values when they conflict, unless the email clearly contains purchase metadata not present in the PDF.
+4. Never hallucinate.
+5. If a value is missing after checking available sources, return null.
+6. Extract all invoice line items.
+7. Preserve currency and numeric values accurately.
+8. Use other_info to briefly mention important source notes or conflicts.
 """
 
 
 invoice_agent = Agent(
     name="Invoice Extraction Agent",
     model="gpt-5-mini",
-    tools=[read_invoice_document, read_invoice_image],
+    tools=[read_email_json, read_invoice_document, read_invoice_image],
     instructions=invoice_agent_instructions,
     output_type=Invoice
 )
 
 
 async def main():
+    email_json_path = "data/Email.json"
     pdf_path = "data/Invoice.pdf"
 
     prompt = f"""
-Please process and extract structured invoice details from {pdf_path}.
+Extract structured invoice details using both sources:
 
-Use the document text first.
-Only inspect saved images if text extraction is incomplete or ambiguous.
+1. Email JSON:
+{email_json_path}
+
+2. PDF invoice:
+{pdf_path}
+
+Use the email and PDF text first.
+Only inspect PDF images if needed.
+Return one final Invoice object.
 """
 
-    print("Processing invoice structure...")
+    print("Processing email and invoice structure...")
 
     result = await Runner.run(
         invoice_agent,
