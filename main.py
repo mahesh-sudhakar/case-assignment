@@ -43,6 +43,7 @@ def read_email_json(email_json_path: str) -> dict:
         with open(email_json_path, "r") as f:
             email_data = json.load(f)
 
+        print(f"Email json read from {email_json_path}")
         return {
             "email": email_data
         }
@@ -60,6 +61,7 @@ def read_invoice_document(pdf_path: str) -> dict:
 
     try:
         with pymupdf.open(pdf_path) as invoice_doc:
+            print(f"PDF invoice read from {pdf_path}")
             for page_number, page in enumerate(invoice_doc, start=1):
                 text = page.get_text("text") or ""
 
@@ -85,6 +87,7 @@ def read_invoice_document(pdf_path: str) -> dict:
 
                     with open(image_path, "wb") as f:
                         f.write(image_bytes)
+                    print(f"Extracted image saved as {image_path}")
 
                     page_data["images"].append({
                         "image_path": image_path,
@@ -122,6 +125,8 @@ def read_invoice_image(image_path: str) -> dict:
     try:
         with open(image_path, "rb") as f:
             image_bytes = f.read()
+
+        print(f"Extracted image read from {image_path}\n")
 
         return {
             "image_path": image_path,
@@ -183,7 +188,7 @@ Only inspect PDF images if needed.
 Return one final Invoice object.
 """
 
-    print("Processing email and invoice structure...")
+    print("Processing email and invoice structure...\n")
 
     result = await Runner.run(
         invoice_agent,
