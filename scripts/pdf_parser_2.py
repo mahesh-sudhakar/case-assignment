@@ -1,8 +1,8 @@
 import pymupdf
 import base64
+import os
 
-
-def read_invoice_document(pdf_path: str) -> dict:
+def read_invoice_document(pdf_path: str, output_dir: str) -> dict:
     pages = []
 
     try:
@@ -13,19 +13,39 @@ def read_invoice_document(pdf_path: str) -> dict:
                 page_data = {
                     "page_number": page_number,
                     "text": text,
+                    "images": []
                 }
 
-                # Only generate image if the PDF page contains images
-                if page.get_images(full=True):
-                    pix = page.get_pixmap(dpi=100)
-                    image_bytes = pix.tobytes("png")
+                images = page.get_images(full=True)
+                if not images:
+                    print(f"Page {page_number} has no embedded images.")
+                    continue
 
-                    # # Save locally for inspection
-                    # image_path = f"page_{page_number}.png"
-                    # pix.save(image_path)
+                print(f"Found {len(images)} image(s) in page {page_number}")
+                for image_idx, image in enumerate(images, start=1):
+                    xref = image[0]
 
-                    page_data["image_base64"] = (
-                        base64.b64encode(image_bytes).decode("utf-8")
+                    image_info = invoice_doc.extract_image(xref)
+                    image_bytes = image_info["image"]
+                    image_ext = image_info["ext"]
+
+                    image_filename = (
+                        f"page_{page_number}_image_{image_idx}.{image_ext}"
+                    )
+                    image_path = os.path.join(output_dir, image_filename)
+
+                    # Save locally for debugging
+                    with open(image_path, "wb") as f:
+                        f.write(image_bytes)
+                    print(f"Image saved at {image_path}")
+
+                    # Also provide base64 to the agent
+                    page_data["images"].append(
+                        {
+                            "image_path": image_path,
+                            "image_base64": base64.b64encode(image_bytes).decode("utf-8"),
+                            "ext": image_ext
+                        }
                     )
 
                 pages.append(page_data)
@@ -37,18 +57,26 @@ def read_invoice_document(pdf_path: str) -> dict:
 
     return {
         "page_count": len(pages),
+
         "extracted_text": "\n\n".join(
             f"-- PAGE {page['page_number']} --\n{page['text']}"
             for page in pages
         ),
-        "extracted_image": "\n\n".join(
-            f"-- PAGE {page['page_number']} --\n{page['image_base64']}"
+
+        "extracted_images": [
+            {
+                "page_number": page["page_number"],
+                "images": page["images"]
+            }
             for page in pages
-            if "image_base64" in page
-        )
+            if page["images"]
+        ]
     }
 
 
-return_data = read_invoice_document("./data/Invoice.pdf")
+output_dir = "temp"
+os.makedirs(output_dir, exist_ok=True)
 
-print(return_data["extracted_image"])
+return_data = read_invoice_document("./data/Invoice.pdf", output_dir)
+
+print(return_data["extracted_images"])

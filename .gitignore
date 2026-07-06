@@ -13,4 +13,5 @@ wheels/
 .env
 
 # other files
+temp/
 data/
