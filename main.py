@@ -5,6 +5,7 @@ import os
 import pymupdf
 
 from agents import Agent, Runner, function_tool
+from agents.tool import ToolOutputImage
 from pydantic import BaseModel, Field
 from typing import List, Optional
 from dotenv import load_dotenv
@@ -128,10 +129,16 @@ def read_invoice_image(image_path: str) -> dict:
 
         print(f"Extracted image read from {image_path}\n")
 
-        return {
-            "image_path": image_path,
-            "image_base64": base64.b64encode(image_bytes).decode("utf-8")
-        }
+        mime = os.path.splitext(image_path)[1].lower().replace(".", "")
+        image_url = (
+            f"data:image/{mime};base64,"
+            f"{base64.b64encode(image_bytes).decode('utf-8')}"
+        )
+
+        return ToolOutputImage(
+            image_url=image_url,
+            detail="high"
+        )
 
     except Exception as e:
         return {
@@ -146,8 +153,9 @@ Workflow:
 1. First call read_email_json to inspect the inbound email.
 2. Then call read_invoice_document to inspect the PDF invoice.
 3. Use email content and PDF text first.
-4. Only call read_invoice_image for a specific image_path if a required value is missing, ambiguous, or appears to be inside an image.
-5. Merge information from the email and PDF into one final Invoice object.
+4. Only call read_invoice_image for the specific image_path that may contain missing invoice fields.
+5. When read_invoice_image returns an image, visually inspect it directly. Do not ask for Base64 or OCR text.
+6. Merge information from the email and PDF into one final Invoice object.
 
 Rules:
 1. The final output must follow the Invoice schema.
