@@ -1,7 +1,8 @@
 import asyncio
 import base64
-import pymupdf
 import json
+import os
+import pymupdf
 
 from agents import Agent, Runner, function_tool
 from pydantic import BaseModel, Field
@@ -11,25 +12,26 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 class InvoiceLineItem(BaseModel):
-    sku: str = None
-    description: str = None
-    quantity: float = None
-    unit_price: float = None
-    line_total: float = None
+    sku: Optional[str] = None
+    description: Optional[str] = None
+    quantity: Optional[float] = None
+    unit_price: Optional[float] = None
+    line_total: Optional[float] = None
 
 
 class Invoice(BaseModel):
-    vendor_name: str = None
-    invoice_number: str = None
-    invoice_date: str = None
-    due_date: str = None
-    payment_terms: str = None
-    currency: str = None
-    customer_po_number: str = None
-    total_due: float = None
-    subtotal: float = None
-    taxes: float = None
+    vendor_name: Optional[str] = None
+    invoice_number: Optional[str] = None
+    invoice_date: Optional[str] = None
+    due_date: Optional[str] = None
+    payment_terms: Optional[str] = None
+    currency: Optional[str] = None
+    customer_po_number: Optional[str] = None
+    total_due: Optional[float] = None
+    subtotal: Optional[float] = None
+    taxes: Optional[float] = None
     line_items: List[InvoiceLineItem] = Field(default_factory=list)
     site_allocations: Optional[str] = None
     other_info: Optional[str] = None
@@ -38,6 +40,8 @@ class Invoice(BaseModel):
 @function_tool
 def read_invoice_document(pdf_path: str) -> dict:
     pages = []
+    output_dir = "temp"
+    os.makedirs(output_dir, exist_ok=True)
 
     try:
         with pymupdf.open(pdf_path) as invoice_doc:
@@ -47,16 +51,30 @@ def read_invoice_document(pdf_path: str) -> dict:
                 page_data = {
                     "page_number": page_number,
                     "text": text,
+                    "images": []
                 }
 
-                # Only generate image if the PDF page contains images
-                if page.get_images(full=True):
-                    pix = page.get_pixmap(dpi=100)
-                    image_bytes = pix.tobytes("png")
+                images = page.get_images(full=True)
 
-                    page_data["image_base64"] = (
-                        base64.b64encode(image_bytes).decode("utf-8")
+                for image_index, image in enumerate(images, start=1):
+                    xref = image[0]
+
+                    image_info = invoice_doc.extract_image(xref)
+                    image_bytes = image_info["image"]
+                    image_ext = image_info["ext"]
+
+                    image_filename = (
+                        f"page_{page_number}_image_{image_index}.{image_ext}"
                     )
+                    image_path = os.path.join(output_dir, image_filename)
+
+                    with open(image_path, "wb") as f:
+                        f.write(image_bytes)
+
+                    page_data["images"].append({
+                        "image_path": image_path,
+                        "ext": image_ext
+                    })
 
                 pages.append(page_data)
 
@@ -67,40 +85,63 @@ def read_invoice_document(pdf_path: str) -> dict:
 
     return {
         "page_count": len(pages),
+
         "extracted_text": "\n\n".join(
             f"-- PAGE {page['page_number']} --\n{page['text']}"
             for page in pages
         ),
-        "extracted_image": "\n\n".join(
-            f"-- PAGE {page['page_number']} --\n{page['image_base64']}"
+
+        "extracted_images": [
+            {
+                "page_number": page["page_number"],
+                "images": page["images"]
+            }
             for page in pages
-            if "image_base64" in page
-        )
+            if page["images"]
+        ]
     }
+
+
+@function_tool
+def read_invoice_image(image_path: str) -> dict:
+    try:
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+
+        return {
+            "image_path": image_path,
+            "image_base64": base64.b64encode(image_bytes).decode("utf-8")
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Failed to read image: {e}"
+        }
+
 
 invoice_agent_instructions = """
 You are an expert in extracting information from invoices.
-Always folow the workflow and rules provided below.
 
 Workflow:
-1. Use all tools that you may have access to.
-2. Read the `extracted_text` from the document first.
-3. If there is an image available for any page then inspect the `extracted_image` to extract information from it.
-4. Return structured information following the schema provided.
+1. First call read_invoice_document tool.
+2. Use extracted text first.
+3. Only call read_invoice_image for a specific image_path if the text is incomplete, ambiguous, missing, or poorly formatted.
+4. Do not inspect logos, QR codes, barcodes, or signatures unless they are needed for invoice extraction.
+5. Return structured information following the schema.
 
 Rules:
 1. Never hallucinate.
-2. If values are missing even after using all the tools and following the workflow, then populate null instead.
-3. Preserve the currency values accurately.
+2. If values are missing even after using available tools, populate null.
+3. Preserve currency values accurately.
 4. Extract all invoice line items.
-5. Use the page images whenever tables, logos, signatures, images or scanned content are difficult to interpret from text alone.
-
+5. Use images only when needed to resolve missing or ambiguous invoice data.
 """
+
 
 invoice_agent = Agent(
     name="Invoice Extraction Agent",
     model="gpt-5-mini",
-    tools=[read_invoice_document],
+    tools=[read_invoice_document, read_invoice_image],
     instructions=invoice_agent_instructions,
     output_type=Invoice
 )
@@ -108,9 +149,16 @@ invoice_agent = Agent(
 
 async def main():
     pdf_path = "data/Invoice.pdf"
-    prompt = f"Please process and extract structured invoice details from {pdf_path}."
+
+    prompt = f"""
+Please process and extract structured invoice details from {pdf_path}.
+
+Use the document text first.
+Only inspect saved images if text extraction is incomplete or ambiguous.
+"""
 
     print("Processing invoice structure...")
+
     result = await Runner.run(
         invoice_agent,
         prompt
