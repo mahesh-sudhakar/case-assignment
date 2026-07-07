@@ -226,24 +226,27 @@ You are an expert at extracting invoice and purchase data from inbound emails an
 
 Workflow:
 1. First call read_email_json to inspect the inbound email.
-2. Then call read_invoice_document to inspect the PDF invoice.
-3. Use email content and PDF text first.
-4. Only call read_invoice_image for the specific image_path that may contain missing invoice fields.
-5. When read_invoice_image returns an image, visually inspect it directly. Do not ask for Base64 or OCR text.
-6. Merge information from the email and PDF into one final Invoice object.
-7. After extracting the invoice data, call send_customer_service_notification with the final Invoice object.
+2. Determine whether a PDF invoice path was provided.
+3. If a PDF path is available, call read_invoice_document and extract data from both the email and PDF.
+4. If no PDF path is available, skip PDF processing and extract data from the email only.
+5. Use text sources first: email content and, when available, PDF text.
+6. Only call read_invoice_image for a specific image_path when a required invoice field is missing, or likely located inside an image.
+7. When read_invoice_image returns an image, visually inspect it directly. Do not request Base64 or OCR text.
+8. Merge all available information into one final Invoice object.
+9. After extracting the invoice data, call send_customer_service_notification with the final Invoice object.
 
 Rules:
 1. The final output must follow the Invoice schema.
-2. The Invoice values may come from the email, the PDF text, or PDF images.
-3. Prefer PDF invoice values over email values when they conflict, unless the email clearly contains purchase metadata not present in the PDF.
-4. Never hallucinate.
-5. If a value is missing after checking available sources, return null.
-6. Extract all invoice line items.
-7. Preserve currency and numeric values accurately.
-8. Use other_info to briefly mention important source notes or conflicts.
-9. Use the final Invoice object values as the notification payload.
-10. The notification must include a human-readable summary for Customer Service and a structured JSON payload for downstream processing.
+2. Invoice values may come from any available source: email content, PDF text, or PDF images.
+3. If PDF data is available, prefer PDF invoice values over email values when they conflict, unless the email clearly contains purchase metadata not present in the PDF.
+4. If no PDF is available, extract all possible invoice data from the email only.
+5. Never hallucinate.
+6. If a value is missing after checking all available sources, return null.
+7. Extract all invoice line items available from the provided sources.
+8. Preserve currency and numeric values accurately.
+9. Use other_info to briefly mention important source notes, missing attachments, or conflicts.
+10. Use the final Invoice object values as the notification payload.
+11. The notification must include a human-readable summary for Customer Service and a structured JSON payload for downstream processing.
 """
 
 
@@ -256,7 +259,13 @@ invoice_agent = Agent(
 )
 
 
-async def main(email_json_path: str, pdf_path: str):
+async def main(email_json_path: str, pdf_path:  Optional[str] = None):
+
+    pdf_section = (
+        f"2. PDF invoice:\n{pdf_path}"
+        if pdf_path
+        else "2. PDF invoice:\nNo PDF attachment was provided. Use email JSON only."
+    )
 
     prompt = f"""
         Extract structured invoice details using following 2 sources:
@@ -264,14 +273,14 @@ async def main(email_json_path: str, pdf_path: str):
         1. Email JSON:
         {email_json_path}
 
-        2. PDF invoice:
-        {pdf_path}
+        {pdf_section}
 
-        Use the email and PDF text first.
-        Only inspect PDF images if needed.
-
-        After extraction, create the outbound Customer Service notification.
-        Return one final Invoice object.
+        Important:
+        - Always read the email JSON first.
+        - Only call read_invoice_document if a valid PDF path is provided.
+        - If no PDF path is provided, extract all possible invoice data from the email only.
+        - After extraction, create the outbound Customer Service summary.
+        - Return one final Invoice object.
     """
 
     print("Processing email and invoice structure...\n")
@@ -298,8 +307,9 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--pdf",
-        required=True,
-        help="Path to the invoice PDF file"
+        required=False,
+        default=None,
+        help="Optional path to the invoice PDF file"
     )
 
     args = parser.parse_args()
