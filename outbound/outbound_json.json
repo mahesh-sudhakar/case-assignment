@@ -1,0 +1,100 @@
+{
+    "vendor_name": "Northbridge Office Furnishings Inc.",
+    "invoice_number": "NBX-260126-0174",
+    "invoice_date": "2026-01-26",
+    "due_date": "2026-02-25",
+    "payment_terms": "Net 30",
+    "currency": "CAD",
+    "customer_po_number": "MLHG-PO-104772",
+    "total_due": 129150.06,
+    "subtotal": 113983.69,
+    "taxes": 15166.37,
+    "line_items": [
+        {
+            "sku": "CHR-ERG-8400-BLK",
+            "description": "ErgoFlex 8400 Task Chair \u2014 Black fabric, 4D arms, synchro-tilt, adjustable lumbar, 300 lb rating",
+            "quantity": 120.0,
+            "unit_price": 357.88,
+            "line_total": 42945.6
+        },
+        {
+            "sku": "CHR-ERG-8400-GRY",
+            "description": "ErgoFlex 8400 Task Chair \u2014 Graphite fabric, 4D arms, synchro-tilt, adjustable lumbar, 300 lb rating",
+            "quantity": 80.0,
+            "unit_price": 357.88,
+            "line_total": 28630.4
+        },
+        {
+            "sku": "CHR-CONF-6100-WHT",
+            "description": "SwayLine 6100 Conference Chair \u2014 White shell, sled base, armless, stackable (low profile)",
+            "quantity": 48.0,
+            "unit_price": 234.6,
+            "line_total": 11260.8
+        },
+        {
+            "sku": "CHR-STK-2200-BLU",
+            "description": "StackPro 2200 Stacking Chair \u2014 Blue polypropylene seat, chrome frame, ganging clips included",
+            "quantity": 150.0,
+            "unit_price": 73.14,
+            "line_total": 10971.0
+        },
+        {
+            "sku": "CHR-GUEST-3300-CHR",
+            "description": "UrbanGuest 3300 Guest Chair \u2014 Charcoal fabric, fixed arms, steel frame, non-marking feet",
+            "quantity": 40.0,
+            "unit_price": 137.08,
+            "line_total": 5483.2
+        },
+        {
+            "sku": "CHR-STK-DOLLY-1",
+            "description": "StackPro Dolly \u2014 capacity 12 chairs per stack, locking casters (for CHR-STK-2200 series)",
+            "quantity": 3.0,
+            "unit_price": 210.0,
+            "line_total": 630.0
+        },
+        {
+            "sku": "ACC-FLR-GLIDE-SET",
+            "description": "Soft-Floor Glide Kit (set of 5) \u2014 for ErgoFlex 8400 series (reduces floor wear on vinyl/laminate)",
+            "quantity": 200.0,
+            "unit_price": 12.0,
+            "line_total": 2400.0
+        },
+        {
+            "sku": "SVC-ASSEMBLY",
+            "description": "On-site assembly service \u2014 non-stacking chairs only (task + conference + guest categories)",
+            "quantity": 288.0,
+            "unit_price": 18.0,
+            "line_total": 5184.0
+        },
+        {
+            "sku": "FRG-WHITEGLOVE-ON",
+            "description": "White-glove delivery + appointment scheduling (Ontario) (Site A + Site B)",
+            "quantity": 2.0,
+            "unit_price": 850.0,
+            "line_total": 1700.0
+        },
+        {
+            "sku": "FRG-WHITEGLOVE-QC",
+            "description": "White-glove delivery + rendez-vous (Qu\u00e9bec) (Site C)",
+            "quantity": 1.0,
+            "unit_price": 975.0,
+            "line_total": 975.0
+        },
+        {
+            "sku": "FRG-FUEL-SURCHG",
+            "description": "Fuel surcharge (rate per contract; applied to shipment)",
+            "quantity": 1.0,
+            "unit_price": 3475.19,
+            "line_total": 3475.19
+        },
+        {
+            "sku": "FEE-ENV-HANDLING",
+            "description": "Environmental handling fee (recycling + pallet recovery) billed per chair unit shipped",
+            "quantity": 438.0,
+            "unit_price": 0.75,
+            "line_total": 328.5
+        }
+    ],
+    "site_allocations": "Site A \u2014 Toronto (TOR-OPS-221): multiple chair categories and 1 white-glove delivery stop; Site B \u2014 Ottawa (OTT-TRN-114): multiple chair categories, stacking chairs and 1 white-glove delivery stop; Site C \u2014 Montr\u00e9al (MTL-ADM-038): multiple chair categories, Qu\u00e9bec delivery (rendez-vous)",
+    "other_info": "Invoice number, invoice date, due date, and total taken from PDF header image (page 1). PO and payment terms from email confirmed by PDF image. Currency CAD. Taxes split by jurisdiction in PDF. No conflicts detected."
+}

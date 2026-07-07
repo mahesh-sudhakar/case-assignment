@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import base64
 import json
@@ -13,6 +14,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+EXTRACTED_IMAGE_DIR = "./temp"
+OUTBOUND_DIR = "./outbound"
 
 class InvoiceLineItem(BaseModel):
     sku: Optional[str] = None
@@ -38,6 +41,10 @@ class Invoice(BaseModel):
     other_info: Optional[str] = None
 
 
+class CustomerServiceNotificationInput(BaseModel):
+    invoice: Invoice
+
+
 @function_tool
 def read_email_json(email_json_path: str) -> dict:
     try:
@@ -57,8 +64,8 @@ def read_email_json(email_json_path: str) -> dict:
 @function_tool
 def read_invoice_document(pdf_path: str) -> dict:
     pages = []
-    output_dir = "temp"
-    os.makedirs(output_dir, exist_ok=True)
+
+    os.makedirs(EXTRACTED_IMAGE_DIR, exist_ok=True)
 
     try:
         with pymupdf.open(pdf_path) as invoice_doc:
@@ -84,7 +91,7 @@ def read_invoice_document(pdf_path: str) -> dict:
                     image_filename = (
                         f"page_{page_number}_image_{image_index}.{image_ext}"
                     )
-                    image_path = os.path.join(output_dir, image_filename)
+                    image_path = os.path.join(EXTRACTED_IMAGE_DIR, image_filename)
 
                     with open(image_path, "wb") as f:
                         f.write(image_bytes)
@@ -127,7 +134,7 @@ def read_invoice_image(image_path: str) -> dict:
         with open(image_path, "rb") as f:
             image_bytes = f.read()
 
-        print(f"Extracted image read from {image_path}\n")
+        print(f"Extracted image read from {image_path}")
 
         mime = os.path.splitext(image_path)[1].lower().replace(".", "")
         image_url = (
@@ -146,6 +153,74 @@ def read_invoice_image(image_path: str) -> dict:
         }
 
 
+@function_tool
+def send_customer_service_notification(data: CustomerServiceNotificationInput) -> dict:
+    invoice_dict = data.invoice.model_dump()
+
+    try:
+        os.makedirs(OUTBOUND_DIR, exist_ok=True)
+
+        outbound_summary_path = os.path.join(OUTBOUND_DIR, "outbound_summary.txt")
+        outbound_json_path = os.path.join(OUTBOUND_DIR, "outbound_json.json")
+
+        summary = f"""
+Invoice Processing Request
+
+    Vendor: {invoice_dict.get("vendor_name")}
+    Invoice Number: {invoice_dict.get("invoice_number")}
+    Invoice Date: {invoice_dict.get("invoice_date")}
+    Due Date: {invoice_dict.get("due_date")}
+    Payment Terms: {invoice_dict.get("payment_terms")}
+    Currency: {invoice_dict.get("currency")}
+    Customer PO Number: {invoice_dict.get("customer_po_number")}
+
+    Amounts:
+    - Subtotal: {invoice_dict.get("subtotal")}
+    - Taxes: {invoice_dict.get("taxes")}
+    - Total Due: {invoice_dict.get("total_due")}
+
+    Line Items:
+"""
+
+        for item in invoice_dict.get("line_items", []):
+            summary += (
+                f"\t- SKU: {item.get('sku')}, "
+                f"Description: {item.get('description')}, "
+                f"Qty: {item.get('quantity')}, "
+                f"Unit Price: {item.get('unit_price')}, "
+                f"Line Total: {item.get('line_total')}\n"
+            )
+
+        summary += f"""
+    Site Allocations Info:
+    {invoice_dict.get("site_allocations")}
+
+    Other Info:
+    {invoice_dict.get("other_info")}
+"""
+
+        with open(outbound_summary_path, "w", encoding="utf-8") as f:
+            f.write(summary.strip())
+
+        with open(outbound_json_path, "w") as f:
+            json.dump(invoice_dict, f, indent=4)
+
+        print(f"Outbound summary file and JSON dump for customer service created!\n")
+
+        return {
+            "status": "notification_created",
+            "message": "Outbound summary file and JSON dump for customer service created successfully.",
+            "outbound_email_file": outbound_summary_path,
+            "structured_payload_file": outbound_json_path
+        }
+
+    except Exception as e:
+        return {
+            "status": "failed",
+            "error": f"Failed to create Customer Service notification: {e}"
+        }
+
+
 invoice_agent_instructions = """
 You are an expert at extracting invoice and purchase data from inbound emails and PDF invoices.
 
@@ -156,6 +231,7 @@ Workflow:
 4. Only call read_invoice_image for the specific image_path that may contain missing invoice fields.
 5. When read_invoice_image returns an image, visually inspect it directly. Do not ask for Base64 or OCR text.
 6. Merge information from the email and PDF into one final Invoice object.
+7. After extracting the invoice data, call send_customer_service_notification with the final Invoice object.
 
 Rules:
 1. The final output must follow the Invoice schema.
@@ -166,35 +242,37 @@ Rules:
 6. Extract all invoice line items.
 7. Preserve currency and numeric values accurately.
 8. Use other_info to briefly mention important source notes or conflicts.
+9. Use the final Invoice object values as the notification payload.
+10. The notification must include a human-readable summary for Customer Service and a structured JSON payload for downstream processing.
 """
 
 
 invoice_agent = Agent(
     name="Invoice Extraction Agent",
     model="gpt-5-mini",
-    tools=[read_email_json, read_invoice_document, read_invoice_image],
+    tools=[read_email_json, read_invoice_document, read_invoice_image, send_customer_service_notification],
     instructions=invoice_agent_instructions,
     output_type=Invoice
 )
 
 
-async def main():
-    email_json_path = "data/Email.json"
-    pdf_path = "data/Invoice.pdf"
+async def main(email_json_path: str, pdf_path: str):
 
     prompt = f"""
-Extract structured invoice details using both sources:
+        Extract structured invoice details using following 2 sources:
 
-1. Email JSON:
-{email_json_path}
+        1. Email JSON:
+        {email_json_path}
 
-2. PDF invoice:
-{pdf_path}
+        2. PDF invoice:
+        {pdf_path}
 
-Use the email and PDF text first.
-Only inspect PDF images if needed.
-Return one final Invoice object.
-"""
+        Use the email and PDF text first.
+        Only inspect PDF images if needed.
+
+        After extraction, create the outbound Customer Service notification.
+        Return one final Invoice object.
+    """
 
     print("Processing email and invoice structure...\n")
 
@@ -209,4 +287,21 @@ Return one final Invoice object.
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+
+    parser = argparse.ArgumentParser("Extract invoice info from an email JSON and attachment PDF")
+
+    parser.add_argument(
+        "--email",
+        required=True,
+        help="Path to the email JSON file"
+    )
+
+    parser.add_argument(
+        "--pdf",
+        required=True,
+        help="Path to the invoice PDF file"
+    )
+
+    args = parser.parse_args()
+
+    asyncio.run(main(args.email, args.pdf))

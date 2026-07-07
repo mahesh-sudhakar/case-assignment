@@ -1,0 +1,34 @@
+Invoice Processing Request
+
+    Vendor: Northbridge Office Furnishings Inc.
+    Invoice Number: NBX-260126-0174
+    Invoice Date: 2026-01-26
+    Due Date: 2026-02-25
+    Payment Terms: Net 30
+    Currency: CAD
+    Customer PO Number: MLHG-PO-104772
+
+    Amounts:
+    - Subtotal: 113983.69
+    - Taxes: 15166.37
+    - Total Due: 129150.06
+
+    Line Items:
+	- SKU: CHR-ERG-8400-BLK, Description: ErgoFlex 8400 Task Chair — Black fabric, 4D arms, synchro-tilt, adjustable lumbar, 300 lb rating, Qty: 120.0, Unit Price: 357.88, Line Total: 42945.6
+	- SKU: CHR-ERG-8400-GRY, Description: ErgoFlex 8400 Task Chair — Graphite fabric, 4D arms, synchro-tilt, adjustable lumbar, 300 lb rating, Qty: 80.0, Unit Price: 357.88, Line Total: 28630.4
+	- SKU: CHR-CONF-6100-WHT, Description: SwayLine 6100 Conference Chair — White shell, sled base, armless, stackable (low profile), Qty: 48.0, Unit Price: 234.6, Line Total: 11260.8
+	- SKU: CHR-STK-2200-BLU, Description: StackPro 2200 Stacking Chair — Blue polypropylene seat, chrome frame, ganging clips included, Qty: 150.0, Unit Price: 73.14, Line Total: 10971.0
+	- SKU: CHR-GUEST-3300-CHR, Description: UrbanGuest 3300 Guest Chair — Charcoal fabric, fixed arms, steel frame, non-marking feet, Qty: 40.0, Unit Price: 137.08, Line Total: 5483.2
+	- SKU: CHR-STK-DOLLY-1, Description: StackPro Dolly — capacity 12 chairs per stack, locking casters (for CHR-STK-2200 series), Qty: 3.0, Unit Price: 210.0, Line Total: 630.0
+	- SKU: ACC-FLR-GLIDE-SET, Description: Soft-Floor Glide Kit (set of 5) — for ErgoFlex 8400 series (reduces floor wear on vinyl/laminate), Qty: 200.0, Unit Price: 12.0, Line Total: 2400.0
+	- SKU: SVC-ASSEMBLY, Description: On-site assembly service — non-stacking chairs only (task + conference + guest categories), Qty: 288.0, Unit Price: 18.0, Line Total: 5184.0
+	- SKU: FRG-WHITEGLOVE-ON, Description: White-glove delivery + appointment scheduling (Ontario) (Site A + Site B), Qty: 2.0, Unit Price: 850.0, Line Total: 1700.0
+	- SKU: FRG-WHITEGLOVE-QC, Description: White-glove delivery + rendez-vous (Québec) (Site C), Qty: 1.0, Unit Price: 975.0, Line Total: 975.0
+	- SKU: FRG-FUEL-SURCHG, Description: Fuel surcharge (rate per contract; applied to shipment), Qty: 1.0, Unit Price: 3475.19, Line Total: 3475.19
+	- SKU: FEE-ENV-HANDLING, Description: Environmental handling fee (recycling + pallet recovery) billed per chair unit shipped, Qty: 438.0, Unit Price: 0.75, Line Total: 328.5
+
+    Site Allocations Info:
+    Site A — Toronto (TOR-OPS-221): multiple chair categories and 1 white-glove delivery stop; Site B — Ottawa (OTT-TRN-114): multiple chair categories, stacking chairs and 1 white-glove delivery stop; Site C — Montréal (MTL-ADM-038): multiple chair categories, Québec delivery (rendez-vous)
+
+    Other Info:
+    Invoice number, invoice date, due date, and total taken from PDF header image (page 1). PO and payment terms from email confirmed by PDF image. Currency CAD. Taxes split by jurisdiction in PDF. No conflicts detected.
